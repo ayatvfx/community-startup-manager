@@ -317,7 +317,8 @@ function Update-FilterButtons {
 function Refresh-List {
     $query = $search.Text.Trim()
     $itemList.Items.Clear()
-    foreach ($entry in @($script:allItems | Sort-Object Name, State)) {
+    foreach ($entry in ($script:allItems | Sort-Object Name, State)) {
+        if ($null -eq $entry) { continue }
         if ($script:filterMode -eq 'Enabled' -and $entry.State -ne 'Enabled') { continue }
         if ($script:filterMode -eq 'Disabled' -and $entry.State -ne 'Disabled') { continue }
         if ($query -and $entry.Name.IndexOf($query, [StringComparison]::OrdinalIgnoreCase) -lt 0 -and
@@ -329,10 +330,17 @@ function Refresh-List {
 }
 
 function Load-Items {
-    $script:allItems = @((Get-ActiveItems) + (Get-DisabledItems))
+    $script:allItems = @()
+    foreach ($entry in @(Get-ActiveItems)) { if ($null -ne $entry) { $script:allItems += $entry } }
+    foreach ($entry in @(Get-DisabledItems)) { if ($null -ne $entry) { $script:allItems += $entry } }
+    $onCount = 0; $offCount = 0
+    foreach ($entry in $script:allItems) {
+        if ($entry.State -eq 'Enabled') { $onCount++ }
+        elseif ($entry.State -eq 'Disabled') { $offCount++ }
+    }
     $totalCount.Text = [string]$script:allItems.Count
-    $enabledCount.Text = [string]@($script:allItems | Where-Object State -eq 'Enabled').Count
-    $disabledCount.Text = [string]@($script:allItems | Where-Object State -eq 'Disabled').Count
+    $enabledCount.Text = [string]$onCount
+    $disabledCount.Text = [string]$offCount
     Refresh-List
 }
 
@@ -375,6 +383,11 @@ if ($UiSmokeTest) {
     $script:filterMode = 'Disabled'; Update-FilterButtons; Refresh-List
     if ($itemList.Items.Count -ne [int]$disabledCount.Text) { throw 'Disabled filter failed.' }
     $script:filterMode = 'All'; Update-FilterButtons; Refresh-List
+    $script:allItems = @()
+    $totalCount.Text = '0'; $enabledCount.Text = '0'; $disabledCount.Text = '0'
+    Refresh-List
+    if ($itemList.Items.Count -ne 0) { throw 'Empty dashboard failed.' }
+    Load-Items
     Write-Output "PASS UI: rounded dashboard initialized; $($itemList.Items.Count) rows; search and filters ready"
     exit 0
 }
