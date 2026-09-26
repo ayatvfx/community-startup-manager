@@ -21,3 +21,19 @@ jobs:
         run: |
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\StartupManager.ps1 -UiSmokeTest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build single-file EXE
+        shell: powershell
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Build-Exe.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test EXE
+        shell: powershell
+        run: |
+          $exe = (Resolve-Path .\dist\CommunityStartupManager.exe).Path
+          $log = Join-Path $env:RUNNER_TEMP 'startup-exe-test.txt'
+          $process = Start-Process -FilePath $exe -ArgumentList "--self-test --log `"$log`"" -Wait -PassThru -WindowStyle Hidden
+          Get-Content -LiteralPath $log
+          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+          $process = Start-Process -FilePath $exe -ArgumentList "--ui-smoke-test --log `"$log`"" -Wait -PassThru -WindowStyle Hidden
+          Get-Content -LiteralPath $log
+          if ($process.ExitCode -ne 0) { exit $process.ExitCode }

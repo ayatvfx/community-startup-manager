@@ -2,3 +2,5 @@
 *.log
 *.zip
 ui-preview.png
+*.exe
+dist/
